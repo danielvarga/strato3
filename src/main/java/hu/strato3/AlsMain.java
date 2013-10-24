@@ -1,15 +1,12 @@
 package hu.strato3;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import eu.stratosphere.pact.client.PlanExecutor;
 import eu.stratosphere.pact.client.RemoteExecutor;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -17,8 +14,6 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -45,10 +40,10 @@ public class AlsMain  implements PlanAssembler, PlanAssemblerDescription {
 		public void map(PactRecord record, Collector<PactRecord> collector) {
 			// get the first field (as type PactString) from the record
 			PactString line = record.getField(0, PactString.class);
-			String[] splitted = line.getString().split("\\|");
-                        first.setInteger(Integer.parseInt(splitted[0]));
-                        second.setInteger(Integer.parseInt(splitted[1]));
-                        value.setDouble(Double.parseDouble(splitted[2]));
+			String[] splitted = line.getValue().split("\\|");
+                        first.setValue(Integer.parseInt(splitted[0]));
+                        second.setValue(Integer.parseInt(splitted[1]));
+                        value.setValue(Double.parseDouble(splitted[2]));
 			this.outputRecord.setField(0, this.first);
 			this.outputRecord.setField(1, this.second);
 			this.outputRecord.setField(2, this.value);
