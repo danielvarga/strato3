@@ -62,7 +62,7 @@ wget -O ~/hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
 Run the job:
 
 \begin{verbatim}
-stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT/bin/pact-client.sh run -j pact/pact-examples/src/main/java/wordcount.jar -c eu.stratosphere.pact.example.wordcount.WordCount -a 1 file:///home/<user>/hamlet.txt file:///home/<user>/wordcount_output
+stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT/bin/pact-client.sh run -j wordcount.jar -c eu.stratosphere.pact.example.wordcount.WordCount -a 1 file:///home/<user>/hamlet.txt file:///home/<user>/wordcount_output
 \end{verbatim}
 
 
