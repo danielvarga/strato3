@@ -1,0 +1,143 @@
+\documentclass[12pt]{article}
+
+\usepackage[magyar]{babel}
+%\usepackage{t1enc}
+%\usepackage[latin2]{inputenc}
+\usepackage[utf8]{inputenc}
+\usepackage{pseudocode}
+
+\usepackage{amsthm} 
+\usepackage{amsmath} 
+\usepackage{amssymb}
+
+
+\usepackage{verbdef}% http://ctan.org/pkg/verbdef
+
+
+\setlength{\headheight}{8mm}
+\setlength{\oddsidemargin}{7mm}
+\setlength{\topmargin}{-15mm}        
+\setlength{\textwidth}{145mm}
+\setlength{\textheight}{230mm}       
+
+\title{\center{Stratosphere hackathon}}
+
+\date{}
+\author{}
+
+\begin{document}
+
+%\maketitle
+
+\section{Install Stratosphere}
+
+\begin{verbatim}
+git clone https://github.com/stratosphere/stratosphere.git
+
+cd stratosphere
+
+mvn -DskipTests clean package #it can take some time
+\end{verbatim}
+
+Now you have a Stratosphere distribution in your stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT directory.
+
+\section{Compile and run}
+
+How to compile the WordCount example? How to run it in local mode?
+
+\begin{verbatim}
+stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT/bin/start-local.sh
+
+javac -cp 'stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT/lib/*' pact/pact-examples/src/main/java/eu/stratosphere/pact/example/wordcount/WordCount.java pact/pact-examples/src/main/java/eu/stratosphere/pact/example/util/AsciiUtils.java
+
+jar cvf wordcount.jar -C pact/pact-examples/src/main/java .
+\end{verbatim}
+
+Get some test data:
+
+\begin{verbatim}
+wget -O ~/hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
+\end{verbatim}
+
+Run the job:
+
+\begin{verbatim}
+stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT/bin/pact-client.sh run -j pact/pact-examples/src/main/java/wordcount.jar -c eu.stratosphere.pact.example.wordcount.WordCount -a 1 file:///home/<user>/hamlet.txt file:///home/<user>/wordcount_output
+\end{verbatim}
+
+
+\section{Running jobs on the cluster}
+
+\verbdef{\vtext}{hadoop01 }
+From machine \vtext you can submit jobs to the Stratosphere cluster. This is the path of the Stratosphere:
+
+\begin{verbatim}
+/mnt/scratch1/tempdata/stratosphere-ozone/stratosphere-master/stratosphere-dist/target/stratosphere-dist-0.4-ozone-SNAPSHOT-bin/stratosphere-0.4-ozone-SNAPSHOT/
+\end{verbatim}
+
+This is the path of the Hadoop (you can use this for handling the hdfs):
+
+\begin{verbatim}
+/mnt/scratch1/tempdata/stratosphere-ozone/hadoop/hadoop-0.20.203.0/
+\end{verbatim}
+
+Submitting a job into the Stratosphere cluster you can give the path on the hdfs the following way:
+
+\begin{verbatim}
+hdfs://hadoop01:8052/...
+\end{verbatim}
+
+\section{Training exercises}
+
+Suppose that we represent a vector $v$ as PACT records $(i, v_i)$. And we represent
+a matrix $M$ as PACT records $(i, j, m_{ij})$.
+
+\begin{itemize}
+  \item compute the scalar product of two vectors: $u^T v$
+  \item compute the dyadic product of two vectors: $v u^T$
+  \item compute the product of a vector and a matrix: $Av$
+  \item compute the product of two matrices: $AB$
+  \item Given matrices $P, Q$ and $R$, compute $||PQ - R||_F$ (where $||\cdot||$ is the Frobenius norm, i.\ e.\  the sum of
+    the squares of the elements of the matrix)
+\end{itemize}
+
+\section{ALS}
+
+\noindent
+Input: $R \in \mathbb{R}^{|I| \times |U|}$, $r_{ui}$, where $(u,i) \in A$, k dimension, (and the number of iterations: N)
+
+\noindent
+Output: $P,Q$ (so that $PQ$ should approximate $R$)
+
+\noindent
+Algorithm steps: \\
+
+\begin{pseudocode}{generateRandomQ}{|I|, k}
+  Q = \mbox{ a random matrix of size } |I| \times k
+\end{pseudocode},
+
+\begin{pseudocode}{updateP}{R, Q}
+\FOREACH  u \in U \DO
+  p_u := (\sum_{i \in I_u} q_i q_i^T)^{-1} (\sum_{i \in I_u} r_{ui}q_i)
+\end{pseudocode}
+
+where $I_u = \{i: (u,i) \in A\}$
+
+\begin{pseudocode}{updateQ}{R, P}
+\FOREACH i \in I \DO
+  q_i := (\sum_{u \in U_i} p_u p_u^T)^{-1} (\sum_{u \in U_i} r_{ui}p_u)
+\end{pseudocode}
+
+where $U_i = \{u: (u,i) \in A\}$
+
+\begin{pseudocode}{ALS}{R, k, N}
+  Q = generateRandom(|I|, k) \\
+  \FOR i \GETS 0 \TO N \DO
+    \BEGIN
+      P:=updateP(R, Q) \\
+      Q:=updateQ(R, P)
+    \END
+\end{pseudocode}
+
+\end{document}
+
