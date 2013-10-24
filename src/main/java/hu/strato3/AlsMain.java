@@ -84,7 +84,8 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		
 		ReduceContract computeP = ReduceContract.builder(ComputeP.class, PactInteger.class, 1 /* EZ itt a user id kulcsa!!! */) 
 				.input(match).name("LS solve").build();
-
+		computeP.setParameter(N_FACTORS, nFactors);
+		
 		ReduceContract compute = ReduceContract.builder(Compute.class, PactInteger.class, targetIdx)
 				.input(match).name("LS solve").build();
 		compute.setParameter(N_FACTORS, nFactors);
@@ -208,7 +209,12 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		private static final long serialVersionUID = 1L;
 		private final PactRecord outputRecord = new PactRecord();
 		private static final double lambda = 0.1;
-		private static final int nFactors = nFactorsDef;
+		int nFactors = -1;
+		
+		@Override
+		public void open(Configuration conf) {
+			nFactors = conf.getInteger(N_FACTORS, nFactorsDef);
+		}
 		
 		@Override
 		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
