@@ -31,9 +31,11 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 	public static final String TARGET_IDX = "targetIdx";
 	public static final String LAMBDA = "lambda";
 	public static final String N_FACTORS = "nFactors";
+	public static final String N_ITERATIONS = "nIterations";
 	public static final String PRINT_LOGS = "printLogs";
 		
 	public static final int nFactorsDef = 5;
+	public static final int nIterationsDef = 10;
 	public static final double lambdaDef = 1;
 	
 	public static class TokenizeLine extends MapStub implements Serializable {
@@ -68,7 +70,8 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		String output = (args.length > 2 ? args[2] : "");
 		int nFactors = Integer.parseInt((args.length > 3 ? args[3] : "" + nFactorsDef));
 		boolean printLogs = Boolean.parseBoolean((args.length > 4 ? args[4] : "false"));
-		double lambda = Double.parseDouble((args.length > 5 ? args[5] : "" + lambdaDef));
+		int nIterations = Integer.parseInt((args.length > 5 ? args[5] : "" + nIterationsDef));		
+		double lambda = Double.parseDouble((args.length > 6 ? args[6] : "" + lambdaDef));
 		int targetIdx = 1;
 		
 		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
@@ -102,7 +105,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		computeQ.setParameter(LAMBDA, "" + lambda);
 		computeQ.setParameter(TARGET_IDX, 1-targetIdx);
 		computeQ.setParameter(PRINT_LOGS, printLogs);
-		
+						
 //		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, ratingsInput, "sink");
 //		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", factorsInput, "sink2");
 //		FileDataSink out3 = new FileDataSink(new RecordOutputFormat(), output + "_match", match, "sink3");
