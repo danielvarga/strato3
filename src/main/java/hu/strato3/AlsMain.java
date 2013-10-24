@@ -166,6 +166,10 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			if (userId < 0) { throw new RuntimeException("Unknown user id."); }
 			Util.fillLowerMatrix(QQ);
 			Util.addRegularization(QQ, (nEvents + 1) * lambda);
+			System.out.println("-------------------------------------");
+			System.out.println("UserId");
+			System.out.println("Matrix to invert:\n" + Util.getMatrixString(QQ));
+			System.out.println("Out vector:\n" + Util.getVectorString(outQ));
 			
 			Matrix matrix = new Matrix(QQ);
 			Matrix rhs = new Matrix(outQ, outQ.length);
@@ -175,6 +179,8 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			for (int i = 0; i < nFactors; i++) {
 				outputRecord.setField(i + 1, new PactDouble(pu.get(i, 0)));
 			}
+			System.out.println("pu:\n" + Util.getMatrixString(Util.toDoubleArrayArray(pu)));
+			System.out.println("-------------------------------------");
 			out.collect(outputRecord);
 		}
 	}
