@@ -95,9 +95,9 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2);
 		
 		ConfigBuilder config = RecordOutputFormat.configureRecordFormat(out2).recordDelimiter('\n').fieldDelimiter(',')
-				.field(PactInteger.class, 0);
+				.field(PactInteger.class, 0).field(PactDouble.class, 1);
 		
-		for (int i = 0; i < nFactors; i++) { config = config.field(PactDouble.class, i+1); }
+		for (int i = 1; i < nFactors; i++) { config = config.field(PactDouble.class, i+1); }
 
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
@@ -115,7 +115,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			PactInteger i = element.getField(0, PactInteger.class);
 			outputRecord.setField(0, i);
 			for (int j = 0; j < nFactors; j++) {
-				outputRecord.setField(j + 1, new PactDouble(1.0 * (j+1) / nFactors));
+				outputRecord.setField(j + 1, new PactDouble(1.0 * (j + 1) / nFactors));
 			}
 			out.collect(element);
 		}
