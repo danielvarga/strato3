@@ -167,7 +167,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			Util.fillLowerMatrix(QQ);
 			Util.addRegularization(QQ, (nEvents + 1) * lambda);
 			System.out.println("-------------------------------------");
-			System.out.println("UserId");
+			System.out.println("UserId=" + userId);
 			System.out.println("Matrix to invert:\n" + Util.getMatrixString(QQ));
 			System.out.println("Out vector:\n" + Util.getVectorString(outQ));
 			
