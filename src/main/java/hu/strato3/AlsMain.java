@@ -91,7 +91,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
 		MatchContract match2 = MatchContract.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0, 0)
 				.input1(ratingsInput).input2(compute).name("User-item-rating factors match").build();
-		match.setParameter(N_FACTORS, nFactors);
+		match2.setParameter(N_FACTORS, nFactors);
 			
 		ReduceContract compute2 = ReduceContract.builder(Compute.class, PactInteger.class, 1-targetIdx)
 				.input(match2).name("LS solve").build();
