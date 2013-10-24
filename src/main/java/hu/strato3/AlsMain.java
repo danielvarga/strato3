@@ -33,6 +33,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 	public static final String N_FACTORS = "nFactors";
 		
 	public static final int nFactorsDef = 5;
+	public static final double lambdaDef = 1;
 	
 	public static class TokenizeLine extends MapStub implements Serializable {
 		private static final long serialVersionUID = 1L;
@@ -65,7 +66,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output = (args.length > 2 ? args[2] : "");
 		int nFactors = Integer.parseInt((args.length > 3 ? args[3] : "" + nFactorsDef));
-		double lambda = Double.parseDouble((args.length > 4 ? args[4] : "0.1"));
+		double lambda = Double.parseDouble((args.length > 4 ? args[4] : "" + lambdaDef));
 		int targetIdx = 1;
 		
 		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
@@ -85,6 +86,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		ReduceContract computeP = ReduceContract.builder(ComputeP.class, PactInteger.class, 1 /* EZ itt a user id kulcsa!!! */) 
 				.input(match).name("LS solve").build();
 		computeP.setParameter(N_FACTORS, nFactors);
+		computeP.setParameter(LAMBDA, "" + lambda);
 		
 		ReduceContract compute = ReduceContract.builder(Compute.class, PactInteger.class, targetIdx)
 				.input(match).name("LS solve").build();
@@ -126,7 +128,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 	public static class Init extends ReduceStub implements Serializable {
 		private static final long serialVersionUID = 1L;
 		private final PactRecord outputRecord = new PactRecord();
-		int nFactors;
+		int nFactors = -1;
 		
 		@Override
 		public void open(Configuration conf) {
@@ -152,8 +154,8 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		private static final long serialVersionUID = 1L;
 		private final PactRecord outputRecord = new PactRecord();
 		int targetIndex = -1;
-		int nFactors;
-		double lambda = 1.0;
+		int nFactors = -1;
+		double lambda = lambdaDef;
 
 		@Override
 		public void open(Configuration conf) {
@@ -208,12 +210,13 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 	public static class ComputeP extends ReduceStub implements Serializable {
 		private static final long serialVersionUID = 1L;
 		private final PactRecord outputRecord = new PactRecord();
-		private static final double lambda = 0.1;
 		int nFactors = -1;
+		double lambda = lambdaDef;
 		
 		@Override
 		public void open(Configuration conf) {
 			nFactors = conf.getInteger(N_FACTORS, nFactorsDef);
+			lambda = conf.getDouble(LAMBDA, lambdaDef);			
 		}
 		
 		@Override
