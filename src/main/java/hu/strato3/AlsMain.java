@@ -65,7 +65,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output = (args.length > 2 ? args[2] : "");
 		int nFactors = Integer.parseInt((args.length > 3 ? args[3] : "" + nFactorsDef));
-		int lambda = Integer.parseInt((args.length > 4 ? args[4] : "0.1"));
+		double lambda = Double.parseDouble((args.length > 4 ? args[4] : "0.1"));
 		int targetIdx = 1;
 		
 		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
@@ -88,7 +88,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		ReduceContract compute = ReduceContract.builder(Compute.class, PactInteger.class, targetIdx)
 				.input(match).name("LS solve").build();
 		compute.setParameter(N_FACTORS, nFactors);
-		compute.setParameter(LAMBDA, lambda);
+		compute.setParameter(LAMBDA, "" + lambda);
 		compute.setParameter(TARGET_IDX, targetIdx);
 		
 		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, ratingsInput, "sink");
