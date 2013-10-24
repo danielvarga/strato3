@@ -4,9 +4,7 @@ import java.io.Serializable;
 
 import eu.stratosphere.pact.client.PlanExecutor;
 import eu.stratosphere.pact.client.RemoteExecutor;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.*;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -15,11 +13,13 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactBoolean;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.util.AsciiUtils;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 
 public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
@@ -74,44 +74,58 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		// parse job parameters
 		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
-		String dataInputFactors = (args.length > 2 ? args[2] : "");
-		String output = (args.length > 3 ? args[3] : "");
+		String output = (args.length > 2 ? args[2] : "");
 
 		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
-		FileDataSource sourceFactors = new FileDataSource(new TextInputFormat(), dataInputFactors, "Input Factor Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
-		sourceFactors.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); 
+		
 		MapContract mapper = MapContract.builder(new TokenizeLine()) .input(source).name("Tokenize Lines").build();
-		MapContract mapperFactors = MapContract.builder(new TokenizeLineFactors()).input(sourceFactors).name("Tokenize Lines").build();
+		ReduceContract reducer = ReduceContract.builder(InitQ.class, PactInteger.class, 0)
+			.input(mapper)
+			.name("Count Words")
+			.build();
 		
+		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, mapper, "sink");
+		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", reducer, "sink2");
 		
-		
-		/*
-		 * ReduceContract reducer = ReduceContract.builder(CountWords.class,
-		 * PactString.class, 0) .input(mapper) .name("Count Words") .build();
-		 */
-		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output,
-				mapper, "sink");
 		RecordOutputFormat.configureRecordFormat(out).recordDelimiter('\n')
 				.fieldDelimiter(',').field(PactInteger.class, 0)
 				.field(PactInteger.class, 1).field(PactDouble.class, 2);
 
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
-		return plan;
+		//return plan;
+		return new Plan(new ArrayList<GenericDataSink>(Arrays.asList(new GenericDataSink[]{out,out2})));
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+	public static class InitQ extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
+		private static final int numFactors = 10;
+		private final PactRecord outputRecord = new PactRecord();
+		
+		@Override
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+			PactRecord element = records.next();
+			PactInteger i = element.getField(0, PactInteger.class);
+			outputRecord.setField(0, i);
+			for (int j = 0; j < numFactors; j++) {
+				outputRecord.setField(j + 1, new PactDouble(1.0 * j / numFactors));
+			}
+			out.collect(element);
+		}
+	}	
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [numSubStasks] [input] [output]";
 	}
 
+	
+	
 	public static void main(String[] args) throws Exception {
 		AlsMain als = new AlsMain();
-		Plan plan = als.getPlan(args[0], args[1], args[2], args[3]);
+		Plan plan = als.getPlan(args[0], args[1], args[2]);
+		//Plan plan = als.getPlan(args[0], args[1], args[2], args[3]);
 		// This will create an executor to run the plan on a cluster. We assume
 		// that the JobManager is running on the local machine on the default
 		// port. Change this according to your configuration.
