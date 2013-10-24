@@ -24,6 +24,8 @@ import java.util.Iterator;
 
 public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
+	private static final int nFactors = 10;
+	
 	public static class TokenizeLine extends MapStub implements Serializable {
 		private static final long serialVersionUID = 1L;
 
@@ -95,7 +97,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		
 		ConfigBuilder config = RecordOutputFormat.configureRecordFormat(out2).recordDelimiter('\n').fieldDelimiter(',').field(PactInteger.class, 0);
 		
-		for (int i = 0; i < args.length; i++) { config.field(PactDouble.class, i+1);}
+		for (int i = 0; i < nFactors; i++) { config.field(PactDouble.class, i+1);}
 
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
@@ -105,7 +107,6 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
 	public static class InitQ extends ReduceStub implements Serializable {
 		private static final long serialVersionUID = 1L;
-		private static final int numFactors = 10;
 		private final PactRecord outputRecord = new PactRecord();
 		
 		@Override
@@ -113,8 +114,8 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			PactRecord element = records.next();
 			PactInteger i = element.getField(0, PactInteger.class);
 			outputRecord.setField(0, i);
-			for (int j = 0; j < numFactors; j++) {
-				outputRecord.setField(j + 1, new PactDouble(1.0 * j / numFactors));
+			for (int j = 0; j < nFactors; j++) {
+				outputRecord.setField(j + 1, new PactDouble(1.0 * (j+1) / nFactors));
 			}
 			out.collect(element);
 		}
