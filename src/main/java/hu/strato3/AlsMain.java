@@ -95,9 +95,9 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			
 		ReduceContract compute2 = ReduceContract.builder(Compute.class, PactInteger.class, 1-targetIdx)
 				.input(match2).name("LS solve").build();
-		compute.setParameter(N_FACTORS, nFactors);
-		compute.setParameter(LAMBDA, "" + lambda);
-		compute.setParameter(TARGET_IDX, 1-targetIdx);
+		compute2.setParameter(N_FACTORS, nFactors);
+		compute2.setParameter(LAMBDA, "" + lambda);
+		compute2.setParameter(TARGET_IDX, 1-targetIdx);
 		
 		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, ratingsInput, "sink");
 		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", factorsInput, "sink2");
