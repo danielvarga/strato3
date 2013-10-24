@@ -106,8 +106,8 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 //		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, ratingsInput, "sink");
 //		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", factorsInput, "sink2");
 //		FileDataSink out3 = new FileDataSink(new RecordOutputFormat(), output + "_match", match, "sink3");
-		FileDataSink outP = new FileDataSink(new RecordOutputFormat(), output + "_solve_generalized", computeP, "P");
-		FileDataSink outQ = new FileDataSink(new RecordOutputFormat(), output + "_solve_generalized", computeQ, "Q");
+		FileDataSink outP = new FileDataSink(new RecordOutputFormat(), output + "_solve_P", computeP, "P");
+		FileDataSink outQ = new FileDataSink(new RecordOutputFormat(), output + "_solve_Q", computeQ, "Q");
 		
 //		RecordOutputFormat.configureRecordFormat(out).recordDelimiter('\n').fieldDelimiter(',')
 //				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2);
