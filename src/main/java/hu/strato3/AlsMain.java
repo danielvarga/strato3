@@ -97,7 +97,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		ConfigBuilder config = RecordOutputFormat.configureRecordFormat(out2).recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0).field(PactDouble.class, 1);
 		
-	//	for (int i = 1; i < nFactors; i++) { config = config.field(PactDouble.class, i+1); }
+		for (int i = 1; i < nFactors; i++) { config = config.field(PactDouble.class, i+1); }
 
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
@@ -117,7 +117,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			for (int j = 0; j < nFactors; j++) {
 				outputRecord.setField(j + 1, new PactDouble(1.0 * (j + 1) / nFactors));
 			}
-			out.collect(element);
+			out.collect(outputRecord);
 		}
 	}	
 
