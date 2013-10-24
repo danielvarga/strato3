@@ -68,7 +68,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		String output = (args.length > 2 ? args[2] : "");
 		int nFactors = Integer.parseInt((args.length > 3 ? args[3] : "" + nFactorsDef));
 		boolean printLogs = Boolean.parseBoolean((args.length > 4 ? args[4] : "false"));
-		double lambda = Double.parseDouble((args.length > 4 ? args[4] : "" + lambdaDef));
+		double lambda = Double.parseDouble((args.length > 5 ? args[5] : "" + lambdaDef));
 		int targetIdx = 1;
 		
 		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
