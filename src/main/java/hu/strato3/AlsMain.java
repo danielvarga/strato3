@@ -1,5 +1,6 @@
 package hu.strato3;
 
+import Jama.Matrix;
 import java.io.Serializable;
 
 import eu.stratosphere.pact.client.PlanExecutor;
@@ -93,9 +94,13 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		MatchContract match = MatchContract.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0, 0)
 				.input1(ratingsInput).input2(factorsInput).name("User-item-rating factors match").build();
 		
+		ReduceContract solve = ReduceContract.builder(ComputeP.class, PactInteger.class, 1 /* EZ itt a user id kulcsa!!! */) 
+				.input(match).name("LS solve").build();
+		
 		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, ratingsInput, "sink");
 		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", factorsInput, "sink2");
 		FileDataSink out3 = new FileDataSink(new RecordOutputFormat(), output + "_match", match, "sink3");
+		FileDataSink out4 = new FileDataSink(new RecordOutputFormat(), output + "_solve", solve, "sink4");
 		
 		RecordOutputFormat.configureRecordFormat(out).recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2);
@@ -105,13 +110,17 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		for (int i = 0; i < nFactors; i++) { config2 = config2.field(PactDouble.class, i+1); }
 
 		ConfigBuilder config3 = RecordOutputFormat.configureRecordFormat(out3).recordDelimiter('\n').fieldDelimiter(',')
-				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2).field(PactInteger.class, 3);
-		for (int i = 0; i < nFactors; i++) { config3 = config3.field(PactDouble.class, i + 4); }		
+				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2);
+		for (int i = 0; i < nFactors; i++) { config3 = config3.field(PactDouble.class, i + 3); }	
+
+		ConfigBuilder config4 = RecordOutputFormat.configureRecordFormat(out4).recordDelimiter('\n').fieldDelimiter(',')
+				.field(PactInteger.class, 0);
+		for (int i = 0; i < nFactors; i++) { config4 = config4.field(PactDouble.class, i+1); }		
 		
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
 		//return plan;
-		return new Plan(new ArrayList<GenericDataSink>(Arrays.asList(new GenericDataSink[]{out,out2,out3})));
+		return new Plan(new ArrayList<GenericDataSink>(Arrays.asList(new GenericDataSink[]{out,out2,out3,out4})));
 	}
 
 	public static class InitQ extends ReduceStub implements Serializable {
@@ -132,18 +141,53 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		}
 	}
 	
+	public static class ComputeP extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
+		private final PactRecord outputRecord = new PactRecord();
+		private static final double lambda = 0.1;
+		@Override
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+			
+			double[][] QQ = new double[nFactors][nFactors];
+			double[] outQ = new double[nFactors];
+			
+			int userId = -1;
+			int nEvents = 0;
+			while(records.hasNext()) {
+				PactRecord record = records.next();
+				if (userId < 0) { userId = record.getField(1, PactInteger.class).getValue(); }
+				double r = record.getField(2, PactDouble.class).getValue();
+				double[] qi = new double[nFactors];
+				for (int k = 0; k < qi.length; k++) { qi[k] = record.getField(k + 3, PactDouble.class).getValue(); }
+				Util.incrementMatrix(QQ, qi);
+				Util.incrementVector(outQ, qi, r);
+				nEvents++;
+			}
+			if (userId < 0) { throw new RuntimeException("Unknown user id."); }
+			Util.fillLowerMatrix(QQ);
+			Util.addRegularization(QQ, (nEvents + 1) * lambda);
+			
+			Matrix matrix = new Matrix(QQ);
+			Matrix rhs = new Matrix(outQ, outQ.length);
+			Matrix pu = matrix.chol().solve(rhs);
+			
+			outputRecord.setField(0, new PactInteger(userId));
+			for (int i = 0; i < nFactors; i++) {
+				outputRecord.setField(i + 1, new PactDouble(pu.get(i, 0)));
+			}
+			out.collect(outputRecord);
+		}
+	}
+	
 	public static class UserItemRatingFactorMatch extends MatchStub implements Serializable {
 
 		@Override
 		public void match(PactRecord ratings, PactRecord factors, Collector<PactRecord> out) throws Exception {
-			PactRecord res = new PactRecord(nFactors + 4);
+			PactRecord res = new PactRecord(nFactors + 3);
 			res.setField(0, ratings.getField(0, PactInteger.class));
 			res.setField(1, ratings.getField(1, PactInteger.class));
 			res.setField(2, ratings.getField(2, PactDouble.class));
-			res.setField(3, factors.getField(0, PactInteger.class));
-			for (int i = 0; i < nFactors; i++) {
-				res.setField(i + 4, factors.getField(i + 1, PactDouble.class));
-			}
+			for (int i = 0; i < nFactors; i++) { res.setField(i + 3, factors.getField(i + 1, PactDouble.class)); }
 			out.collect(res);
 		}
 	}
