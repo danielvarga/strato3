@@ -13,6 +13,7 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -82,27 +83,34 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
 		
-		MapContract mapper = MapContract.builder(new TokenizeLine()) .input(source).name("Tokenize Lines").build();
-		ReduceContract reducer = ReduceContract.builder(InitQ.class, PactInteger.class, 0)
-			.input(mapper)
+		MapContract ratingsInput = MapContract.builder(new TokenizeLine()).input(source).name("Tokenize Lines").build();
+		ReduceContract factorsInput = ReduceContract.builder(InitQ.class, PactInteger.class, 0)
+			.input(ratingsInput)
 			.name("Count Words")
 			.build();
 		
-		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, mapper, "sink");
-		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", reducer, "sink2");
+		MatchContract match = MatchContract.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0, 0)
+				.input1(ratingsInput).input2(factorsInput).name("User-item-rating factors match").build();
+		
+		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, ratingsInput, "sink");
+		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", factorsInput, "sink2");
+		FileDataSink out3 = new FileDataSink(new RecordOutputFormat(), output + "_match", match, "sink3");
 		
 		RecordOutputFormat.configureRecordFormat(out).recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2);
 		
-		ConfigBuilder config = RecordOutputFormat.configureRecordFormat(out2).recordDelimiter('\n').fieldDelimiter(',')
-				.field(PactInteger.class, 0).field(PactDouble.class, 1);
-		
-		for (int i = 1; i < nFactors; i++) { config = config.field(PactDouble.class, i+1); }
+		ConfigBuilder config2 = RecordOutputFormat.configureRecordFormat(out2).recordDelimiter('\n').fieldDelimiter(',')
+				.field(PactInteger.class, 0);
+		for (int i = 0; i < nFactors; i++) { config2 = config2.field(PactDouble.class, i+1); }
 
+		ConfigBuilder config3 = RecordOutputFormat.configureRecordFormat(out3).recordDelimiter('\n').fieldDelimiter(',')
+				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2).field(PactInteger.class, 3);
+		for (int i = 0; i < nFactors; i++) { config3 = config3.field(PactDouble.class, i + 4); }		
+		
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
 		//return plan;
-		return new Plan(new ArrayList<GenericDataSink>(Arrays.asList(new GenericDataSink[]{out,out2})));
+		return new Plan(new ArrayList<GenericDataSink>(Arrays.asList(new GenericDataSink[]{out,out2,out3})));
 	}
 
 	public static class InitQ extends ReduceStub implements Serializable {
@@ -119,7 +127,23 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			}
 			out.collect(outputRecord);
 		}
-	}	
+	}
+	
+	public static class UserItemRatingFactorMatch extends MatchStub implements Serializable {
+
+		@Override
+		public void match(PactRecord ratings, PactRecord factors, Collector<PactRecord> out) throws Exception {
+			PactRecord res = new PactRecord(nFactors + 4);
+			res.setField(0, ratings.getField(0, PactInteger.class));
+			res.setField(1, ratings.getField(1, PactInteger.class));
+			res.setField(2, ratings.getField(2, PactDouble.class));
+			res.setField(3, factors.getField(0, PactInteger.class));
+			for (int i = 0; i < nFactors; i++) {
+				res.setField(i + 4, factors.getField(i + 1, PactDouble.class));
+			}
+			out.collect(res);
+		}
+	}
 
 	@Override
 	public String getDescription() {
