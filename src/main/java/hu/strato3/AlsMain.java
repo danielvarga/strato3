@@ -6,6 +6,7 @@ import eu.stratosphere.pact.client.PlanExecutor;
 import eu.stratosphere.pact.client.RemoteExecutor;
 import eu.stratosphere.pact.common.contract.*;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
+import eu.stratosphere.pact.common.io.RecordOutputFormat.ConfigBuilder;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
@@ -91,6 +92,10 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		RecordOutputFormat.configureRecordFormat(out).recordDelimiter('\n')
 				.fieldDelimiter(',').field(PactInteger.class, 0)
 				.field(PactInteger.class, 1).field(PactDouble.class, 2);
+		
+		ConfigBuilder config = RecordOutputFormat.configureRecordFormat(out2).recordDelimiter('\n').fieldDelimiter(',').field(PactInteger.class, 0);
+		
+		for (int i = 0; i < args.length; i++) { config.field(PactDouble.class, i+1);}
 
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
