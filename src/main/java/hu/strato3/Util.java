@@ -53,11 +53,4 @@ public class Util {
 		}
 		return res;
 	}
-	public static double[][] toDoubleArrayArray(Matrix m) {
-		double[][] res = new double[m.getRowDimension()][m.getColumnDimension()];
-		for (int i = 0; i < res.length; i++) {
-			res[i] = m.getRowPackedCopy();
-		}
-		return res;
-	}
 }

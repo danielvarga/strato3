@@ -176,11 +176,13 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			Matrix pu = matrix.chol().solve(rhs);
 			
 			outputRecord.setField(0, new PactInteger(userId));
+			double[] puArray = new double[nFactors];
 			for (int i = 0; i < nFactors; i++) {
-				outputRecord.setField(i + 1, new PactDouble(pu.get(i, 0)));
+				double val = pu.get(i, 0);
+				outputRecord.setField(i + 1, new PactDouble(val));
+				puArray[i] = val;
 			}
-			System.out.println("pu:\n" + Util.getMatrixString(Util.toDoubleArrayArray(pu)));
-			System.out.println("-------------------------------------");
+			System.out.println("pu:\n" + Util.getVectorString(puArray));
 			out.collect(outputRecord);
 		}
 	}
