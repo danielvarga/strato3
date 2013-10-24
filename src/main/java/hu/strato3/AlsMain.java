@@ -82,23 +82,27 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		MatchContract match = MatchContract.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0, 0)
 				.input1(ratingsInput).input2(factorsInput).name("User-item-rating factors match").build();
 		match.setParameter(N_FACTORS, nFactors);
-		
-		ReduceContract computeP = ReduceContract.builder(ComputeP.class, PactInteger.class, 1 /* EZ itt a user id kulcsa!!! */) 
-				.input(match).name("LS solve").build();
-		computeP.setParameter(N_FACTORS, nFactors);
-		computeP.setParameter(LAMBDA, "" + lambda);
-		
+			
 		ReduceContract compute = ReduceContract.builder(Compute.class, PactInteger.class, targetIdx)
 				.input(match).name("LS solve").build();
 		compute.setParameter(N_FACTORS, nFactors);
 		compute.setParameter(LAMBDA, "" + lambda);
 		compute.setParameter(TARGET_IDX, targetIdx);
+
+		MatchContract match2 = MatchContract.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0, 0)
+				.input1(ratingsInput).input2(compute).name("User-item-rating factors match").build();
+		match.setParameter(N_FACTORS, nFactors);
+			
+		ReduceContract compute2 = ReduceContract.builder(Compute.class, PactInteger.class, 1-targetIdx)
+				.input(match2).name("LS solve").build();
+		compute.setParameter(N_FACTORS, nFactors);
+		compute.setParameter(LAMBDA, "" + lambda);
+		compute.setParameter(TARGET_IDX, 1-targetIdx);
 		
 		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, ratingsInput, "sink");
 		FileDataSink out2 = new FileDataSink(new RecordOutputFormat(), output + "_q", factorsInput, "sink2");
 		FileDataSink out3 = new FileDataSink(new RecordOutputFormat(), output + "_match", match, "sink3");
-		FileDataSink out4 = new FileDataSink(new RecordOutputFormat(), output + "_solve", computeP, "sink4");
-		FileDataSink out5 = new FileDataSink(new RecordOutputFormat(), output + "_solve_generalized", compute, "sink5");
+		FileDataSink out5 = new FileDataSink(new RecordOutputFormat(), output + "_solve_generalized", compute2, "sink5");
 		
 		RecordOutputFormat.configureRecordFormat(out).recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2);
@@ -111,10 +115,6 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactDouble.class, 2);
 		for (int i = 0; i < nFactors; i++) { config3 = config3.field(PactDouble.class, i + 3); }	
 
-		ConfigBuilder config4 = RecordOutputFormat.configureRecordFormat(out4).recordDelimiter('\n').fieldDelimiter(',')
-				.field(PactInteger.class, 0);
-		for (int i = 0; i < nFactors; i++) { config4 = config4.field(PactDouble.class, i+1); }
-
 		ConfigBuilder config5 = RecordOutputFormat.configureRecordFormat(out5).recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0);
 		for (int i = 0; i < nFactors; i++) { config5 = config5.field(PactDouble.class, i+1); }		
@@ -122,7 +122,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		Plan plan = new Plan(out, "ALS Example");
 		plan.setDefaultParallelism(numSubTasks);
 		//return plan;
-		return new Plan(new ArrayList<GenericDataSink>(Arrays.asList(new GenericDataSink[]{out,out2,out3,out4,out5})));
+		return new Plan(new ArrayList<GenericDataSink>(Arrays.asList(new GenericDataSink[]{out,out2,out3,out5})));
 	}
 
 	public static class Init extends ReduceStub implements Serializable {
@@ -206,60 +206,6 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			out.collect(outputRecord);
 		}
 	}	
-	
-	public static class ComputeP extends ReduceStub implements Serializable {
-		private static final long serialVersionUID = 1L;
-		private final PactRecord outputRecord = new PactRecord();
-		int nFactors = -1;
-		double lambda = lambdaDef;
-		
-		@Override
-		public void open(Configuration conf) {
-			nFactors = conf.getInteger(N_FACTORS, nFactorsDef);
-			lambda = conf.getDouble(LAMBDA, lambdaDef);			
-		}
-		
-		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-			
-			double[][] QQ = new double[nFactors][nFactors];
-			double[] outQ = new double[nFactors];
-			
-			int userId = -1;
-			int nEvents = 0;
-			while(records.hasNext()) {
-				PactRecord record = records.next();
-				if (userId < 0) { userId = record.getField(1 /* Ezt kell altalanositani */, PactInteger.class).getValue(); }
-				double r = record.getField(2, PactDouble.class).getValue();
-				double[] qi = new double[nFactors];
-				for (int k = 0; k < qi.length; k++) { qi[k] = record.getField(k + 3, PactDouble.class).getValue(); }
-				Util.incrementMatrix(QQ, qi);
-				Util.incrementVector(outQ, qi, r);
-				nEvents++;
-			}
-			if (userId < 0) { throw new RuntimeException("Unknown user id."); }
-			Util.fillLowerMatrix(QQ);
-			Util.addRegularization(QQ, (nEvents + 1) * lambda);
-			System.out.println("-------------------------------------");
-			System.out.println("UserId=" + userId);
-			System.out.println("Matrix to invert:\n" + Util.getMatrixString(QQ));
-			System.out.println("Out vector:\n" + Util.getVectorString(outQ));
-			
-			Matrix matrix = new Matrix(QQ);
-			Matrix rhs = new Matrix(outQ, outQ.length);
-			Matrix pu = matrix.chol().solve(rhs);
-			
-			outputRecord.setField(0, new PactInteger(userId));
-			double[] puArray = new double[nFactors];
-			for (int i = 0; i < nFactors; i++) {
-				double val = pu.get(i, 0);
-				outputRecord.setField(i + 1, new PactDouble(val));
-				puArray[i] = val;
-			}
-			System.out.println("pu:\n" + Util.getVectorString(puArray));
-			out.collect(outputRecord);
-		}
-	}
 	
 	public static class UserItemRatingFactorMatch extends MatchStub implements Serializable {
 
