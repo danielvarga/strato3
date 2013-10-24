@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Random;
 
 public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
@@ -122,8 +123,10 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			PactRecord element = records.next();
 			PactInteger i = element.getField(0, PactInteger.class);
 			outputRecord.setField(0, i);
+			Random r = new Random();
 			for (int j = 0; j < nFactors; j++) {
-				outputRecord.setField(j + 1, new PactDouble(1.0 * (j + 1) / nFactors));
+				//outputRecord.setField(j + 1, new PactDouble(1.0 * (j + 1) / nFactors));
+				outputRecord.setField(j + 1, new PactDouble(r.nextDouble()));
 			}
 			out.collect(outputRecord);
 		}
