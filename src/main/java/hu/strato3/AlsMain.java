@@ -44,6 +44,15 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 	public static final int nIterationsDef = 10;
 	public static final double lambdaDef = 1;
 
+	public static class Identity extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void map(PactRecord record, Collector<PactRecord> collector) {
+			collector.collect(record.createCopy());
+		}
+	}
+
 	public static class TokenizeLine extends MapStub implements Serializable {
 		private static final long serialVersionUID = 1L;
 
@@ -54,6 +63,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> collector) {
+			System.out.println("TokenizeLine ---");
 			PactString line = record.getField(0, PactString.class);
 			String[] splitted = line.getValue().split("\\|");
 			first.setValue(Integer.parseInt(splitted[0]));
@@ -262,6 +272,9 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
 		iteration.setNextPartialSolution(computeQ);
 
+		MapContract afterIteration = MapContract.builder(Identity.class)
+				.input(iteration).name("split after iteration").build();
+
 		MatchContract matchForLastP = MatchContract
 				.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0,
 						0).input1(ratingsInput).input2(iteration)
@@ -286,7 +299,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		FileDataSink outQ = new FileDataSink(new RecordOutputFormat(), output
-				+ "_solve_Q", iteration, "Q");
+				+ "_solve_Q", afterIteration, "Q");
 		ConfigBuilder configQ = RecordOutputFormat.configureRecordFormat(outQ)
 				.recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0);
@@ -295,7 +308,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		Plan plan = new Plan(new ArrayList<GenericDataSink>(
-				Arrays.asList(new GenericDataSink[] { outP /*, outQ*/ })));
+				Arrays.asList(new GenericDataSink[] { outP /* , outQ */})));
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
