@@ -5,5 +5,3 @@ Stratosphere hackathon team 3
 
 Writeable, password cached?
 
-
-
