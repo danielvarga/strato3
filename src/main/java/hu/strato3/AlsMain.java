@@ -262,23 +262,22 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
 		iteration.setNextPartialSolution(computeQ);
 
-		// MatchContract matchForLastP = MatchContract
-		// .builder(UserItemRatingFactorMatch.class, PactInteger.class, 0,
-		// 0).input1(ratingsInput).input2(iteration)
-		// .name("User-item-rating factors match").build();
-		// matchForLastP.setParameter(N_FACTORS, nFactors);
-		//
-		// ReduceContract computeLastP = ReduceContract
-		// .builder(Compute.class, PactInteger.class, targetIdx)
-		// .input(match).name("LS solve").build();
-		// computeLastP.setParameter(N_FACTORS, nFactors);
-		// computeLastP.setParameter(LAMBDA, "" + lambda);
-		// computeLastP.setParameter(TARGET_IDX, targetIdx);
-		// computeLastP.setParameter(PRINT_LOGS, printLogs);
-		//
+		MatchContract matchForLastP = MatchContract
+				.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0,
+						0).input1(ratingsInput).input2(iteration)
+				.name("User-item-rating factors match").build();
+		matchForLastP.setParameter(N_FACTORS, nFactors);
+
+		ReduceContract computeLastP = ReduceContract
+				.builder(Compute.class, PactInteger.class, targetIdx)
+				.input(matchForLastP).name("LS solve").build();
+		computeLastP.setParameter(N_FACTORS, nFactors);
+		computeLastP.setParameter(LAMBDA, "" + lambda);
+		computeLastP.setParameter(TARGET_IDX, targetIdx);
+		computeLastP.setParameter(PRINT_LOGS, printLogs);
 
 		FileDataSink outP = new FileDataSink(new RecordOutputFormat(), output
-				+ "_solve_P", computeP, "P");
+				+ "_solve_P", computeLastP, "P");
 		ConfigBuilder configP = RecordOutputFormat.configureRecordFormat(outP)
 				.recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0);
@@ -296,7 +295,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		Plan plan = new Plan(new ArrayList<GenericDataSink>(
-				Arrays.asList(new GenericDataSink[] { /* outP, */outQ })));
+				Arrays.asList(new GenericDataSink[] { outP , outQ })));
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
