@@ -30,6 +30,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.generic.contract.BulkIteration;
 
 public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
@@ -139,7 +140,6 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		@Override
 		public void reduce(Iterator<PactRecord> records,
 				Collector<PactRecord> out) throws Exception {
-
 			double[][] QQ = new double[nFactors][nFactors];
 			double[] outQ = new double[nFactors];
 
@@ -207,7 +207,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 				+ nIterationsDef));
 		double lambda = Double.parseDouble((args.length > 6 ? args[6] : ""
 				+ lambdaDef));
-		int targetIdx = 1;
+		final int targetIdx = 1;
 
 		FileDataSource source = new FileDataSource(new TextInputFormat(),
 				dataInput, "Input Lines");
@@ -216,14 +216,18 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		MapContract ratingsInput = MapContract.builder(new TokenizeLine())
 				.input(source).name("Tokenize Lines").build();
 
-		ReduceContract factorsInput = ReduceContract
+		ReduceContract factorsInputQ = ReduceContract
 				.builder(Init.class, PactInteger.class, 0).input(ratingsInput)
-				.name("Count Words").build();
-		factorsInput.setParameter(N_FACTORS, nFactors);
+				.name("init random Q").build();
+		factorsInputQ.setParameter(N_FACTORS, nFactors);
 
+		BulkIteration iteration = new BulkIteration("ALS iteration");
+		iteration.setInput(factorsInputQ);
+		iteration.setMaximumNumberOfIterations(nIterations);
+	
 		MatchContract match = MatchContract
-				.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0,
-						0).input1(ratingsInput).input2(factorsInput)
+				.builder(UserItemRatingFactorMatch.class, PactInteger.class, 1 - targetIdx,
+						0).input1(ratingsInput).input2(iteration.getPartialSolution())
 				.name("User-item-rating factors match").build();
 		match.setParameter(N_FACTORS, nFactors);
 
@@ -236,9 +240,9 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		computeP.setParameter(PRINT_LOGS, printLogs);
 
 		MatchContract match2 = MatchContract
-				.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0,
+				.builder(UserItemRatingFactorMatch.class, PactInteger.class, targetIdx,
 						0).input1(ratingsInput).input2(computeP)
-				.name("User-item-rating factors match").build();
+				.name("User-item-rating factors match2").build();
 		match2.setParameter(N_FACTORS, nFactors);
 
 		ReduceContract computeQ = ReduceContract
@@ -249,18 +253,33 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		computeQ.setParameter(TARGET_IDX, 1 - targetIdx);
 		computeQ.setParameter(PRINT_LOGS, printLogs);
 
-		FileDataSink outP = new FileDataSink(new RecordOutputFormat(), output
-				+ "_solve_P", computeP, "P");
+		iteration.setNextPartialSolution(computeQ);
+
+//		MatchContract matchForLastP = MatchContract
+//				.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0,
+//						0).input1(ratingsInput).input2(iteration)
+//				.name("User-item-rating factors match").build();
+//		matchForLastP.setParameter(N_FACTORS, nFactors);
+//
+//		ReduceContract computeLastP = ReduceContract
+//				.builder(Compute.class, PactInteger.class, targetIdx)
+//				.input(match).name("LS solve").build();
+//		computeLastP.setParameter(N_FACTORS, nFactors);
+//		computeLastP.setParameter(LAMBDA, "" + lambda);
+//		computeLastP.setParameter(TARGET_IDX, targetIdx);
+//		computeLastP.setParameter(PRINT_LOGS, printLogs);
+//		
+//		FileDataSink outP = new FileDataSink(new RecordOutputFormat(), output
+//				+ "_solve_P", computeLastP, "P");
+//		ConfigBuilder configP = RecordOutputFormat.configureRecordFormat(outP)
+//				.recordDelimiter('\n').fieldDelimiter(',')
+//				.field(PactInteger.class, 0);
+//		for (int i = 0; i < nFactors; i++) {
+//			configP = configP.field(PactDouble.class, i + 1);
+//		}
+
 		FileDataSink outQ = new FileDataSink(new RecordOutputFormat(), output
-				+ "_solve_Q", computeQ, "Q");
-
-		ConfigBuilder configP = RecordOutputFormat.configureRecordFormat(outP)
-				.recordDelimiter('\n').fieldDelimiter(',')
-				.field(PactInteger.class, 0);
-		for (int i = 0; i < nFactors; i++) {
-			configP = configP.field(PactDouble.class, i + 1);
-		}
-
+				+ "_solve_Q", iteration, "Q");
 		ConfigBuilder configQ = RecordOutputFormat.configureRecordFormat(outQ)
 				.recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0);
@@ -270,7 +289,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
 		// Plan plan = new Plan(outQ, "ALS Example");
 		Plan plan = new Plan(new ArrayList<GenericDataSink>(
-				Arrays.asList(new GenericDataSink[] { outP, outQ })));
+				Arrays.asList(new GenericDataSink[] { /*outP,*/ outQ })));
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
