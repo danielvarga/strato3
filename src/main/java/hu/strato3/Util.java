@@ -4,10 +4,8 @@
  */
 package hu.strato3;
 
-import Jama.Matrix;
-
 /**
- *
+ * 
  * @author DaveXster
  */
 public class Util {
@@ -16,14 +14,18 @@ public class Util {
 		for (int i = 0; i < v.length; i++) {
 			double[] mi = M[i];
 			double vi = v[i];
-			for (int j = i; j < v.length; j++) { mi[j] += vi * v[j]; }
+			for (int j = i; j < v.length; j++) {
+				mi[j] += vi * v[j];
+			}
 		}
 	}
-	
+
 	public static void incrementVector(double[] out, double[] v, double r) {
-		for (int i = 0; i < v.length; i++) { out[i] += v[i] * r; }
+		for (int i = 0; i < v.length; i++) {
+			out[i] += v[i] * r;
+		}
 	}
-	
+
 	public static void fillLowerMatrix(double[][] M) {
 		for (int i = 0; i < M.length; i++) {
 			for (int j = i; j < M.length; j++) {
@@ -31,11 +33,13 @@ public class Util {
 			}
 		}
 	}
-	
+
 	public static void addRegularization(double[][] M, double r) {
-		for (int i = 0; i < M.length; i++) { M[i][i] += r; }
+		for (int i = 0; i < M.length; i++) {
+			M[i][i] += r;
+		}
 	}
-	
+
 	public static String getMatrixString(double[][] M) {
 		String res = "";
 		for (int i = 0; i < M.length; i++) {
@@ -46,6 +50,7 @@ public class Util {
 		}
 		return res;
 	}
+
 	public static String getVectorString(double[] v) {
 		String res = "";
 		for (int i = 0; i < v.length; i++) {
