@@ -1,1 +1,3 @@
 *.class
+/lib/*.jar
+!/lib/Jama-1.0.2.jar
