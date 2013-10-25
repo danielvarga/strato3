@@ -59,8 +59,8 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			first.setValue(Integer.parseInt(splitted[0]));
 			second.setValue(Integer.parseInt(splitted[1]));
 			value.setValue(Double.parseDouble(splitted[2]));
-			this.outputRecord.setField(0, this.first);
-			this.outputRecord.setField(1, this.second);
+			this.outputRecord.setField(1, this.first);
+			this.outputRecord.setField(0, this.second);
 			this.outputRecord.setField(2, this.value);
 			collector.collect(this.outputRecord);
 		}
@@ -82,11 +82,13 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			PactRecord element = records.next();
 			PactInteger i = element.getField(0, PactInteger.class);
 			outputRecord.setField(0, i);
-			Random r = new Random(i.getValue() + 42);
+			// Random r = new Random(i.getValue() + 42);
 
 			for (int j = 0; j < nFactors; j++) {
-				double val = (r.nextDouble() - 0.5) * 0.1;
+				// double val = (r.nextDouble() - 0.5) * 0.1;
+				double val = i.getValue() + j;
 				outputRecord.setField(j + 1, new PactDouble(val));
+				System.out.println("i= " + i.getValue() + " j=" + j);
 			}
 			out.collect(outputRecord);
 		}
@@ -152,9 +154,12 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 							.getValue();
 				}
 				double r = record.getField(2, PactDouble.class).getValue();
+				int itemId = record.getField(1 - targetIndex, PactInteger.class).getValue();
+				System.out.println("itemId=" + itemId + " r=" + r + " userId" + userId);
 				double[] qi = new double[nFactors];
 				for (int k = 0; k < qi.length; k++) {
 					qi[k] = record.getField(k + 3, PactDouble.class).getValue();
+					System.out.println("qi[k]=" + qi[k]);
 				}
 				Util.incrementMatrix(QQ, qi);
 				Util.incrementVector(outQ, qi, r);
@@ -164,9 +169,10 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 				throw new RuntimeException("Unknown user id.");
 			}
 			Util.fillLowerMatrix(QQ);
-			Util.addRegularization(QQ, (nEvents + 1) * lambda);
+			//Util.addRegularization(QQ, (nEvents + 1) * lambda);
+			Util.addRegularization(QQ, lambda);
 			if (printLogs)
-				System.out.println("-------------------------------------");
+				System.out.println("-------------------------------------" + targetIndex);
 			if (printLogs)
 				System.out.println("UserId=" + userId);
 			if (printLogs)
