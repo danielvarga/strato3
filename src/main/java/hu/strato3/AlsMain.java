@@ -295,7 +295,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		Plan plan = new Plan(new ArrayList<GenericDataSink>(
-				Arrays.asList(new GenericDataSink[] { outP , outQ })));
+				Arrays.asList(new GenericDataSink[] { outP /*, outQ*/ })));
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
