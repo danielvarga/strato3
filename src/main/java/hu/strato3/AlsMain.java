@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Random;
 
 import Jama.Matrix;
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -30,7 +29,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
+import eu.stratosphere.pact.generic.contract.Contract;
 
 public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 
@@ -161,7 +160,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 			double[] outQ = new double[nFactors];
 
 			int userId = -1;
-			int nEvents = 0;
+//			int nEvents = 0;
 			while (records.hasNext()) {
 				PactRecord record = records.next();
 				if (userId < 0) {
@@ -180,7 +179,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 				}
 				Util.incrementMatrix(QQ, qi);
 				Util.incrementVector(outQ, qi, r);
-				nEvents++;
+//				nEvents++;
 			}
 			if (userId < 0) {
 				throw new RuntimeException("Unknown user id.");
@@ -237,60 +236,44 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 				.name("init random Q").build();
 		factorsInputQ.setParameter(N_FACTORS, nFactors);
 
-		BulkIteration iteration = new BulkIteration("ALS iteration");
-		iteration.setInput(factorsInputQ);
-		iteration.setMaximumNumberOfIterations(nIterations);
+		Contract lastPContract = null;
+		Contract lastQContract = factorsInputQ;
 
-		MatchContract match = MatchContract
-				.builder(UserItemRatingFactorMatch.class, PactInteger.class,
-						1 - targetIdx, 0).input1(ratingsInput)
-				.input2(iteration.getPartialSolution())
-				.name("User-item-rating factors match").build();
-		match.setParameter(N_FACTORS, nFactors);
+		for (int i = 0; i < nIterations; i++) {
+			MatchContract match = MatchContract
+					.builder(UserItemRatingFactorMatch.class,
+							PactInteger.class, 1 - targetIdx, 0)
+					.input1(ratingsInput).input2(lastQContract)
+					.name("User-item-rating factors match").build();
+			match.setParameter(N_FACTORS, nFactors);
 
-		ReduceContract computeP = ReduceContract
-				.builder(Compute.class, PactInteger.class, targetIdx)
-				.input(match).name("LS solve").build();
-		computeP.setParameter(N_FACTORS, nFactors);
-		computeP.setParameter(LAMBDA, "" + lambda);
-		computeP.setParameter(TARGET_IDX, targetIdx);
-		computeP.setParameter(PRINT_LOGS, printLogs);
+			ReduceContract computeP = ReduceContract
+					.builder(Compute.class, PactInteger.class, targetIdx)
+					.input(match).name("LS solve").build();
+			computeP.setParameter(N_FACTORS, nFactors);
+			computeP.setParameter(LAMBDA, "" + lambda);
+			computeP.setParameter(TARGET_IDX, targetIdx);
+			computeP.setParameter(PRINT_LOGS, printLogs);
+			lastPContract = computeP;
+			MatchContract match2 = MatchContract
+					.builder(UserItemRatingFactorMatch.class,
+							PactInteger.class, targetIdx, 0)
+					.input1(ratingsInput).input2(computeP)
+					.name("User-item-rating factors match2").build();
+			match2.setParameter(N_FACTORS, nFactors);
 
-		MatchContract match2 = MatchContract
-				.builder(UserItemRatingFactorMatch.class, PactInteger.class,
-						targetIdx, 0).input1(ratingsInput).input2(computeP)
-				.name("User-item-rating factors match2").build();
-		match2.setParameter(N_FACTORS, nFactors);
-
-		ReduceContract computeQ = ReduceContract
-				.builder(Compute.class, PactInteger.class, 1 - targetIdx)
-				.input(match2).name("LS solve").build();
-		computeQ.setParameter(N_FACTORS, nFactors);
-		computeQ.setParameter(LAMBDA, "" + lambda);
-		computeQ.setParameter(TARGET_IDX, 1 - targetIdx);
-		computeQ.setParameter(PRINT_LOGS, printLogs);
-
-		iteration.setNextPartialSolution(computeQ);
-
-		MapContract afterIteration = MapContract.builder(Identity.class)
-				.input(iteration).name("split after iteration").build();
-
-		MatchContract matchForLastP = MatchContract
-				.builder(UserItemRatingFactorMatch.class, PactInteger.class, 0,
-						0).input1(ratingsInput).input2(iteration)
-				.name("User-item-rating factors match").build();
-		matchForLastP.setParameter(N_FACTORS, nFactors);
-
-		ReduceContract computeLastP = ReduceContract
-				.builder(Compute.class, PactInteger.class, targetIdx)
-				.input(matchForLastP).name("LS solve").build();
-		computeLastP.setParameter(N_FACTORS, nFactors);
-		computeLastP.setParameter(LAMBDA, "" + lambda);
-		computeLastP.setParameter(TARGET_IDX, targetIdx);
-		computeLastP.setParameter(PRINT_LOGS, printLogs);
+			ReduceContract computeQ = ReduceContract
+					.builder(Compute.class, PactInteger.class, 1 - targetIdx)
+					.input(match2).name("LS solve").build();
+			computeQ.setParameter(N_FACTORS, nFactors);
+			computeQ.setParameter(LAMBDA, "" + lambda);
+			computeQ.setParameter(TARGET_IDX, 1 - targetIdx);
+			computeQ.setParameter(PRINT_LOGS, printLogs);
+			lastQContract = computeQ;
+		}
 
 		FileDataSink outP = new FileDataSink(new RecordOutputFormat(), output
-				+ "_solve_P", computeLastP, "P");
+				+ "_solve_P", lastPContract, "P");
 		ConfigBuilder configP = RecordOutputFormat.configureRecordFormat(outP)
 				.recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0);
@@ -299,7 +282,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		FileDataSink outQ = new FileDataSink(new RecordOutputFormat(), output
-				+ "_solve_Q", afterIteration, "Q");
+				+ "_solve_Q", lastQContract, "Q");
 		ConfigBuilder configQ = RecordOutputFormat.configureRecordFormat(outQ)
 				.recordDelimiter('\n').fieldDelimiter(',')
 				.field(PactInteger.class, 0);
@@ -308,7 +291,7 @@ public class AlsMain implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		Plan plan = new Plan(new ArrayList<GenericDataSink>(
-				Arrays.asList(new GenericDataSink[] { outP /* , outQ */})));
+		Arrays.asList(new GenericDataSink[] { outP  , outQ})));
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
